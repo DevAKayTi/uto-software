@@ -1,0 +1,542 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Customer {
+  name     String  @id @db.VarChar(50)
+  company  String?
+  email    String? @unique
+  location String?
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  receipts Receipt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId])
+}
+
+model Industry {
+  name String @id
+
+  branches Branch[]
+  products Product[]
+  Share    Share[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Branch {
+  id       String @id @default(cuid())
+  location String
+
+  industry   Industry @relation(fields: [industryId], references: [name])
+  industryId String
+
+  warehouses  WareHouse[]
+  customers   Customer[]
+  receipts    Receipt[]
+  transfers   Transfer[]
+  cashbooks   Cashbook[]
+  expenses    Expense[]
+  cosignments Cosignment[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  ChartsOfAccount ChartsOfAccount[]
+
+  @@index([industryId])
+}
+
+model WareHouse {
+  name String @id
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  shelves Shelf[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index(branchId)
+}
+
+model Shelf {
+  name String @id
+
+  warehouse   WareHouse @relation(fields: [warehouseId], references: [name])
+  warehouseId String
+
+  productItems   ProductItem[]
+  shelfInventory ShelfInventory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index(warehouseId)
+}
+
+model ShelfInventory {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  shelf   Shelf  @relation(fields: [shelfId], references: [name])
+  shelfId String
+
+  productId String
+
+  qtyIncrease Int?
+  qtyDecrease Int?
+
+  transactionType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shelfId])
+}
+
+model Product {
+  industry   Industry @relation(fields: [industryId], references: [name])
+  industryId String
+
+  code        String  @id @unique @db.VarChar(13)
+  brand       String  @db.VarChar(50)
+  description String  @unique
+  imageSrc    String
+  salePrice   Float   @default(0.00)
+  costPrice   Float   @default(0.00)
+  unit        String
+  packing     String
+  status      Boolean
+
+  productItems    ProductItem[]
+  receiptItems    ReceiptItem[]
+  transferItems   TransferItem[]
+  cosignmentItems CosignmentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index(code)
+  @@index(description)
+  @@index(industryId)
+}
+
+model ProductItem {
+  id String @id @default(cuid())
+
+  product   Product @relation(fields: [productId], references: [code])
+  productId String
+  shelf     Shelf   @relation(fields: [shelfId], references: [name])
+  shelfId   String
+  quantity  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, shelfId])
+  @@index([productId])
+  @@index([shelfId])
+}
+
+model Receipt {
+  id               String    @id @default(cuid())
+  invoiceNumber    Int
+  date             DateTime
+  paymentType      String
+  finalTotalPrice  Float     @default(0.00)
+  paidAmount       Float     @default(0.00)
+  paidDate         DateTime?
+  customerLocation String?
+  salePerson       String
+  status           Boolean   @default(true)
+
+  receiptItems ReceiptItem[]
+  credit       Credit?
+
+  customer   Customer  @relation(fields: [customerId], references: [name])
+  customerId String
+  branch     Branch    @relation(fields: [branchId], references: [id])
+  branchId   String
+  cashBook   Cashbook? @relation(fields: [cashBookId], references: [id])
+  cashBookId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, invoiceNumber])
+  @@index([customerId])
+  @@index([branchId])
+  @@index([cashBookId])
+}
+
+model ReceiptItem {
+  id String @id @default(cuid())
+
+  product   Product @relation(fields: [productId], references: [code])
+  productId String
+
+  quantity   Int
+  salePrice  Float  @default(0.00)
+  wholeSale  Float? @default(0.00)
+  totalPrice Float  @default(0.00)
+  discount   Int
+
+  receipt   Receipt @relation(fields: [receiptId], references: [id])
+  receiptId String
+
+  cosignmentItem   CosignmentItem @relation(fields: [cosignmentItemId], references: [id])
+  cosignmentItemId String
+
+  returnItem ReturnItem?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([receiptId])
+  @@index([cosignmentItemId])
+}
+
+model ReturnItem {
+  id         String   @id @default(cuid())
+  date       DateTime
+  quantity   Int
+  price      Float    @default(0.00)
+  totalPrice Float    @default(0.00)
+  remark     String?  @default("return")
+
+  receiptItem   ReceiptItem @relation(fields: [receiptItemId], references: [id])
+  receiptItemId String      @unique
+
+  cashBook   Cashbook? @relation(fields: [cashBookId], references: [id])
+  cashBookId String?
+
+  transactions Transaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cashBookId])
+}
+
+model Credit {
+  id         String   @id @default(cuid())
+  startDate  DateTime
+  dueDate    DateTime
+  timePeriod Int
+
+  totalAmount Float   @default(0.00)
+  paidAmount  Float   @default(0.00)
+  amountLeft  Float   @default(0.00)
+  status      Boolean
+  receipt     Receipt @relation(fields: [receiptId], references: [id])
+  receiptId   String  @unique
+
+  transactions Transaction[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([receiptId])
+}
+
+model Transaction {
+  id String @id @default(cuid())
+
+  amountLeft  Float?   @default(0.00)
+  payAmount   Float    @default(0.00)
+  payDate     DateTime
+  paymentType String
+
+  credit   Credit @relation(fields: [creditId], references: [id])
+  creditId String
+
+  returnItem   ReturnItem? @relation(fields: [returnItemId], references: [id])
+  returnItemId String?     @unique
+
+  cashBook   Cashbook? @relation(fields: [cashBookId], references: [id])
+  cashBookId String?
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creditId])
+  @@index([cashBookId])
+  @@index([returnItemId])
+}
+
+model Transfer {
+  id            String @id @default(cuid())
+  invoiceNumber Int
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  date DateTime
+
+  warehouseFromId String
+  warehouseToId   String
+  confirm         Boolean
+  status          Boolean        @default(false)
+  transferItems   TransferItem[]
+
+  createAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, invoiceNumber])
+  @@index([branchId])
+  @@index([warehouseFromId])
+  @@index([warehouseToId])
+}
+
+model TransferItem {
+  id        String  @id @default(cuid())
+  product   Product @relation(fields: [productId], references: [code])
+  productId String
+
+  qty        Int
+  remark     String
+  transfer   Transfer @relation(fields: [transferId], references: [id])
+  transferId String
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([transferId])
+  @@index([productId])
+}
+
+model Cashbook {
+  id              String   @id @default(cuid())
+  invoice         Int
+  date            DateTime @unique
+  totalRevenue    Float    @default(0.00)
+  totalCashSale   Float    @default(0.00)
+  totalCreditSale Float    @default(0.00)
+  totalExpense    Float    @default(0.00)
+  earlyPay        Float?   @default(0.00)
+  totalPay        Float    @default(0.00)
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  expenses     Expense[]
+  receipts     Receipt[]
+  transactions Transaction[]
+  returnItems  ReturnItem[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, invoice])
+  @@index([branchId])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  date          DateTime
+  remark        String
+  amount        Float    @default(0.00)
+  invoiceNumber String
+  account       String
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  cashbook   Cashbook? @relation(fields: [cashbookId], references: [id])
+  cashbookId String?
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId])
+  @@index([cashbookId])
+}
+
+//cosignment
+
+model Cosignment {
+  id            String   @id @default(cuid())
+  date          DateTime
+  invoiceNumber String
+
+  from         String
+  invoice      String   @unique
+  by           String
+  invoiceDate  DateTime
+  receivedDate DateTime
+  goodReceive  String
+  status       Boolean
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  branchId String
+
+  cosignmentItems           CosignmentItem[]
+  shares                    Share[]
+  cosignmentCostingExpenses CosignmentCostingExpense[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, invoiceNumber])
+  @@index([branchId])
+}
+
+model CosignmentItem {
+  id String @id @default(cuid())
+
+  product   Product @relation(fields: [productId], references: [code])
+  productId String
+
+  cost Float @default(0.0000000000)
+  rate Float @default(0.0000000000)
+
+  quantity     Int
+  quantityLeft Int
+
+  cosignment   Cosignment @relation(fields: [cosignmentId], references: [id])
+  cosignmentId String
+
+  receiptItems ReceiptItem[]
+
+  lotNumber       String?
+  manufactureDate DateTime?
+  expiredDate     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([cosignmentId])
+}
+
+model CosignmentCostingExpense {
+  id          String    @id @default(cuid())
+  description String
+  date        DateTime?
+  payment     Float?    @default(0.0000000000)
+  memo        String?
+  bankCharges Float?    @default(0.0000000000)
+  rate        Float?    @default(0.0000000000)
+  kyats       Float     @default(0.0000000000)
+
+  cosignment   Cosignment @relation(fields: [cosignmentId], references: [id])
+  cosignmentId String
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cosignmentId])
+}
+
+model Share {
+  name String @id
+  code Int    @unique
+
+  industry   Industry @relation(fields: [industryId], references: [name])
+  industryId String
+
+  created     DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  cosignments Cosignment[]
+
+  @@index([industryId])
+}
+
+// Main-Accounting schema
+model AccountTypes {
+  accountType String @id
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  AccountCategory AccountCategory[]
+}
+
+model AccountCategory {
+  id              String @id @default(cuid())
+  accountCategory String
+
+  accountType   AccountTypes @relation(fields: [accountTypeId], references: [accountType])
+  accountTypeId String
+
+  ChartsOfAccount ChartsOfAccount[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountTypeId])
+}
+
+model ChartsOfAccount {
+  id String @id @default(cuid())
+
+  accountCategory   AccountCategory @relation(fields: [accountCategoryId], references: [id])
+  accountCategoryId String
+
+  account String @unique
+  code    Int    @unique
+
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  branchId String?
+
+  balance Float @default(0.00000)
+
+  accountTransaction AccountTransaction[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountCategoryId])
+  @@index([branchId])
+}
+
+model AccountTransactionInfo {
+  id      Int      @id @default(autoincrement())
+  date    DateTime
+  invoice String
+  memo    String
+
+  accountTransaction AccountTransaction[]
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AccountTransaction {
+  id String @id @default(cuid())
+
+  accountTransactionInfo   AccountTransactionInfo @relation(fields: [accountTransactionInfoId], references: [id])
+  accountTransactionInfoId Int
+
+  chartsOfAccount   ChartsOfAccount @relation(fields: [chartsOfAccountId], references: [id])
+  chartsOfAccountId String
+
+  debit  Float? @default(0.01)
+  credit Float? @default(0.01)
+
+  created   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountTransactionInfoId])
+  @@index([chartsOfAccountId])
+}

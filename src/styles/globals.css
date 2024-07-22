@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-100;
+}
+
+
+.hidden-spinner {
+  appearance: none;
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.hidden-spinner::-webkit-inner-spin-button,
+.hidden-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0; /* Remove default margins */
+}
+
+/* Target the number input's up and down arrows and hide them */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+
+@media print {
+  .print-hidden-spinner {
+    appearance: none;
+    -moz-appearance: textfield; /* Firefox */
+  }
+  
+  .print-hidden-spinner::-webkit-inner-spin-button,
+  .print-hidden-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0; /* Remove default margins */
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+}
